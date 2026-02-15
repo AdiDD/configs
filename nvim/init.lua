@@ -17,6 +17,8 @@ vim.o.foldlevelstart = 99
 vim.opt.termguicolors = true
 vim.opt.signcolumn = "yes"
 vim.opt.cursorline = true
+vim.opt.title = true
+vim.opt.titlestring = "nvim/%{fnamemodify(getcwd(), ':t')}"
 
 -- ===== Behavior =====
 vim.opt.ignorecase = true
@@ -29,7 +31,7 @@ vim.opt.updatetime = 300
 vim.g.mapleader = " "
 
 -- Clear search highlight
-vim.keymap.set("n", "<leader>/", ":nohlsearch<CR>")
+vim.keymap.set("n", "<leader>/", "<cmd>nohlsearch<cr>", { desc = "Clear search highlight" })
 
 -- Ignore .gitignore for :grep
 vim.o.grepprg = "rg --vimgrep"
@@ -49,11 +51,27 @@ vim.keymap.set("t", "<C-l>", [[<C-\><C-n><C-w>l]])
 -- Exit terminal insert
 vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]])
 
--- Window resize
-vim.keymap.set("n", "<C-Up>", "<cmd>resize +2<cr>")
-vim.keymap.set("n", "<C-Down>", "<cmd>resize -2<cr>")
-vim.keymap.set("n", "<C-Left>", "<cmd>vertical resize -2<cr>")
-vim.keymap.set("n", "<C-Right>", "<cmd>vertical resize +2<cr>")
+
+-- Window resize (countable)
+local function vresize(delta)
+  local n = vim.v.count1 -- defaults to 1 if no count given
+  local amount = math.abs(delta) * n
+  local sign = (delta >= 0) and "+" or "-"
+  vim.cmd(("vertical resize %s%d"):format(sign, amount))
+end
+
+local function hresize(delta)
+  local n = vim.v.count1
+  local amount = math.abs(delta) * n
+  local sign = (delta >= 0) and "+" or "-"
+  vim.cmd(("resize %s%d"):format(sign, amount))
+end
+
+vim.keymap.set("n", "<leader>wh", function() vresize(-2) end, { desc = "Window narrower" })
+vim.keymap.set("n", "<leader>wl", function() vresize( 2) end, { desc = "Window wider" })
+vim.keymap.set("n", "<leader>wj", function() hresize( 2) end, { desc = "Window taller" })
+vim.keymap.set("n", "<leader>wk", function() hresize(-2) end, { desc = "Window shorter" })
+vim.keymap.set("n", "<leader>we", "<cmd>wincmd =<cr>", { desc = "Equalize window sizes" })
 
 -- Tab navigation
 vim.keymap.set("n", "<leader>tn", "<cmd>tabnew<cr>")
@@ -66,36 +84,36 @@ vim.keymap.set("n", "<leader>bb", "<cmd>b#<cr>", { desc = "Switch to other Buffe
 
 -- Dele current buffer without closing the window
 vim.keymap.set("n", "<leader>bd", function()
-  local buf = vim.api.nvim_get_current_buf()
-  if #vim.api.nvim_tabpage_list_wins(0) == 1 then
-    vim.cmd("enew")
-  else
-    vim.cmd("bnext")
-  end
-  vim.api.nvim_buf_delete(buf, { force = false })
+    local buf = vim.api.nvim_get_current_buf()
+    if #vim.api.nvim_tabpage_list_wins(0) == 1 then
+        vim.cmd("enew")
+    else
+        vim.cmd("bnext")
+    end
+    vim.api.nvim_buf_delete(buf, { force = false })
 end, { desc = "Delete buffer (keep tab)" })
 
 -- Delete all other buffers
 vim.keymap.set("n", "<leader>bo", function()
-  local current = vim.api.nvim_get_current_buf()
-  local visible = {}
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    local buf = vim.api.nvim_win_get_buf(win)
-    visible[buf] = true
-  end
-
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if buf ~= current
-      and vim.api.nvim_buf_is_loaded(buf)
-      and vim.bo[buf].buflisted
-      and not visible[buf]
-    then
-      -- don't delete modified buffers
-      if not vim.bo[buf].modified then
-        pcall(vim.api.nvim_buf_delete, buf, { force = false })
-      end
+    local current = vim.api.nvim_get_current_buf()
+    local visible = {}
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        local buf = vim.api.nvim_win_get_buf(win)
+        visible[buf] = true
     end
-  end
+
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if buf ~= current
+            and vim.api.nvim_buf_is_loaded(buf)
+            and vim.bo[buf].buflisted
+            and not visible[buf]
+        then
+            -- don't delete modified buffers
+            if not vim.bo[buf].modified then
+                pcall(vim.api.nvim_buf_delete, buf, { force = false })
+            end
+        end
+    end
 end, { desc = "Delete other (non-visible) buffers" })
 
 -- LAZY VIM
